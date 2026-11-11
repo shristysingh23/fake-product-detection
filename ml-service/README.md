@@ -29,5 +29,34 @@ pytest -v
 - `GET /` returns `message`.
 - `GET /health` returns `status`.
 - `POST /predict` accepts `product_name` (string), `brand` (string), and `price` (number). It returns `product_name`, `brand`, `price`, and `prediction`.
+- `POST /analyze` accepts this JSON request:
+
+  ```json
+  {
+    "product_name": "AirPods Pro",
+    "brand": "Apple",
+    "price": 24999
+  }
+  ```
+
+  It returns the following fixed dummy response with HTTP 200:
+
+  ```json
+  {
+    "product_name": "AirPods Pro",
+    "brand": "Apple",
+    "price": 24999,
+    "verdict": "SUSPICIOUS",
+    "confidence": 0.5,
+    "reasons": ["Dummy response: real analysis is not implemented yet"],
+    "analysis_mode": "dummy"
+  }
+  ```
+
+  Invalid input returns HTTP 422. `/analyze` is a **DUMMY** endpoint; real analysis arrives on Days 6-10. Example PowerShell request:
+
+  ```powershell
+  curl.exe -X POST http://127.0.0.1:8000/analyze -H "Content-Type: application/json" -d '{"product_name":"AirPods Pro","brand":"Apple","price":24999}'
+  ```
 
 `/predict` currently uses hard-coded demo reference data for AirPods Pro and iPhone 15. No trained model exists yet.

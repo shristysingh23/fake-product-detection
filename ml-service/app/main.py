@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from app.schemas import AnalyzeRequest, AnalyzeResponse
 
 app = FastAPI(title="Fake Product Detection API")
 
@@ -55,4 +56,18 @@ def predict(product: ProductRequest):
         "brand": product.brand,
         "price": product.price,
         "prediction": prediction
+    }
+
+
+@app.post("/analyze", response_model=AnalyzeResponse)
+def analyze(product: AnalyzeRequest):
+    """Return a Day 4 dummy result; Days 6-10 will replace this logic."""
+    return {
+        "product_name": product.product_name,
+        "brand": product.brand,
+        "price": product.price,
+        "verdict": "SUSPICIOUS",
+        "confidence": 0.5,
+        "reasons": ["Dummy response: real analysis is not implemented yet"],
+        "analysis_mode": "dummy",
     }
