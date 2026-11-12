@@ -60,3 +60,11 @@ pytest -v
   ```
 
 `/predict` currently uses hard-coded demo reference data for AirPods Pro and iPhone 15. No trained model exists yet.
+
+## Integration with the backend
+
+See [API_CONTRACT.md](API_CONTRACT.md) for the backend request and response contract. Start the ML service, then run the live smoke test from this directory:
+
+```powershell
+.\venv\Scripts\python.exe scripts\smoke_test.py
+```
