@@ -1,5 +1,9 @@
-from fastapi import FastAPI
-from app.schemas import AnalyzeRequest, AnalyzeResponse
+from io import BytesIO
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from PIL import Image, UnidentifiedImageError
+
+from app.schemas import AnalyzeResponse
 
 app = FastAPI(title="Fake Product Detection API")
 
@@ -60,14 +64,33 @@ def predict(product: ProductRequest):
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
-def analyze(product: AnalyzeRequest):
-    """Return a Day 4 dummy result; Days 6-10 will replace this logic."""
+async def analyze(image: UploadFile = File(...)):
+    """Day 4 dummy implementation per the 20-day plan; real analysis replaces it on Days 6-13."""
+    # Check the declared content type before reading or inspecting the uploaded bytes.
+    accepted_types = {"image/jpeg", "image/png", "image/webp"}
+    if image.content_type not in accepted_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Please upload a JPEG, PNG or WebP image.",
+        )
+
+    # Read the upload into memory only; the image is never saved to disk.
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    # Verify that the declared image file contains readable image data.
+    try:
+        with Image.open(BytesIO(image_bytes)) as uploaded_image:
+            uploaded_image.verify()
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError):
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file is not a valid image.",
+        )
+
     return {
-        "product_name": product.product_name,
-        "brand": product.brand,
-        "price": product.price,
-        "verdict": "SUSPICIOUS",
-        "confidence": 0.5,
-        "reasons": ["Dummy response: real analysis is not implemented yet"],
-        "analysis_mode": "dummy",
+        "brand": "MAGGI",
+        "product": "2-Minute Noodles",
+        "status": "ANALYSIS_PENDING",
     }

@@ -2,7 +2,7 @@
 
 ## Base URL
 
-Use `http://127.0.0.1:8000`. In Spring Boot configuration, use `127.0.0.1` instead of `localhost`: this Uvicorn setup binds to IPv4 `127.0.0.1`, while `localhost` can resolve to IPv6 on Windows and fail to connect.
+Use `http://127.0.0.1:8000`. In Spring Boot configuration, use `127.0.0.1` instead of `localhost`: Uvicorn here binds to IPv4 `127.0.0.1`, while `localhost` can resolve to IPv6 on Windows and fail to connect.
 
 ## Start and check the service
 
@@ -12,96 +12,83 @@ From the `ml-service` directory in PowerShell, start the service with the existi
 .\venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Check it with `GET http://127.0.0.1:8000/health`. A healthy service returns HTTP 200:
+Check `GET http://127.0.0.1:8000/health`. A healthy service returns HTTP 200:
 
 ```json
 {"status":"ok"}
 ```
 
-## POST /analyze
+## Request: POST /analyze
 
 - Method: `POST`
 - URL: `http://127.0.0.1:8000/analyze`
-- Header: `Content-Type: application/json`
+- Content type: `multipart/form-data`
+- Required file part name: `image` (exactly one file part)
+- Accepted declared file content types: `image/jpeg`, `image/png`, and `image/webp`
+- Suggested maximum upload size: 10 MB as a team recommendation; the service does not enforce this limit yet.
 
-Request fields and validation:
+The endpoint validates the declared content type, rejects empty files, then checks that Pillow can read and verify the uploaded image. The uploaded bytes are handled in memory and are not saved to disk.
 
-| Field | Type | Validation |
-| --- | --- | --- |
-| `product_name` | string | Required; must be non-empty after trimming surrounding whitespace. |
-| `brand` | string | Required; must be non-empty after trimming surrounding whitespace. |
-| `price` | number | Required; must be greater than zero. |
+## Responses
 
-Valid request example:
+### Success
 
-```json
-{
-  "product_name": "AirPods Pro",
-  "brand": "Apple",
-  "price": 24999
-}
-```
-
-## Success response
-
-HTTP 200 example captured from the running service:
+HTTP 200 response captured from the running service using a valid PNG upload:
 
 ```json
-{
-  "product_name": "AirPods Pro",
-  "brand": "Apple",
-  "price": 24999.0,
-  "verdict": "SUSPICIOUS",
-  "confidence": 0.5,
-  "reasons": [
-    "Dummy response: real analysis is not implemented yet"
-  ],
-  "analysis_mode": "dummy"
-}
+{"brand":"MAGGI","product":"2-Minute Noodles","status":"ANALYSIS_PENDING"}
 ```
 
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `product_name` | string | Validated product name echoed from the request. |
-| `brand` | string | Validated brand echoed from the request. |
-| `price` | number | Validated price echoed from the request. |
-| `verdict` | string | Current placeholder verdict. |
-| `confidence` | number | Current placeholder confidence, between 0 and 1. |
-| `reasons` | array of strings | Explanations associated with the verdict. |
-| `analysis_mode` | string | Identifies the current response mode. |
+All three response fields are strings. These values are dummy placeholders and will gain fields later; the plan's Day 14 report adds similarity scores and issues. The field names `brand`, `product`, and `status` will not change without team agreement.
 
-`analysis_mode` is currently `"dummy"`. Response values will change when real analysis arrives; field names will stay the same unless the team agrees to change them.
+### Unsupported file type
 
-## Error response
-
-Invalid input returns HTTP 422. Example captured from the running service for `price: -5`:
+HTTP 400, captured for a `text/plain` upload (PDF and other unsupported declared content types return the same detail):
 
 ```json
-{"detail":[{"type":"greater_than","loc":["body","price"],"msg":"Input should be greater than 0","input":-5,"ctx":{"gt":0.0}}]}
+{"detail":"Unsupported file type. Please upload a JPEG, PNG or WebP image."}
 ```
 
-The backend should treat any non-200 status as an error.
+### Empty file
+
+HTTP 400, captured for an empty file declared as `image/png`:
+
+```json
+{"detail":"Uploaded file is empty."}
+```
+
+### Unreadable image
+
+HTTP 400, captured for random bytes declared as `image/png`:
+
+```json
+{"detail":"Uploaded file is not a valid image."}
+```
+
+### Missing image part
+
+HTTP 422, captured when the request has no image part:
+
+```json
+{"detail":[{"type":"missing","loc":["body","image"],"msg":"Field required","input":null}]}
+```
+
+The backend should treat any non-200 status as an error and map validation, upload, and connection errors appropriately.
 
 ## Java mapping hint
 
-Suggested Java types for JSON fields:
-
 | JSON field | Suggested Java type |
 | --- | --- |
-| `product_name` | `String` |
 | `brand` | `String` |
-| `price` | `double` |
-| `verdict` | `String` |
-| `confidence` | `double` |
-| `reasons` | `List<String>` |
-| `analysis_mode` | `String` |
+| `product` | `String` |
+| `status` | `String` |
 
 ## Suggested HTTP client timeouts
 
-Suggested timeout values are 3 seconds to connect and 10 seconds to read. These are suggestions because later analysis may take longer.
+Suggested values are 3 seconds to connect and 30 seconds to read, because later analysis will take longer.
 
 ## Questions for the backend team
 
-- Can you confirm these field names?
-- Will images be sent later?
-- Who handles retry and error mapping?
+- Can you confirm the multipart part name `image`?
+- Can you confirm the response field names `brand`, `product`, and `status`?
+- How will Spring Boot map 400, 422, and connection errors?

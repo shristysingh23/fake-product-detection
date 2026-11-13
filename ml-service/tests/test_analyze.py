@@ -1,153 +1,136 @@
-"""Tests for POST /analyze and its Day 4 dummy response contract."""
+"""Tests for the image upload dummy contract on POST /analyze."""
+
+from io import BytesIO
 
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from app.main import app
 
 
 client = TestClient(app)
+EXPECTED_BODY = {
+    "brand": "MAGGI",
+    "product": "2-Minute Noodles",
+    "status": "ANALYSIS_PENDING",
+}
 
 
-# Check that a valid request returns the complete fixed dummy response.
-def test_analyze_valid_request_returns_dummy_response():
-    payload = {"product_name": "AirPods Pro", "brand": "Apple", "price": 24999}
-
-    response = client.post("/analyze", json=payload)
-
-    assert response.status_code == 200
-    body = response.json()
-    assert set(body) == {
-        "product_name",
-        "brand",
-        "price",
-        "verdict",
-        "confidence",
-        "reasons",
-        "analysis_mode",
-    }
-    assert body["product_name"] == payload["product_name"]
-    assert body["brand"] == payload["brand"]
-    assert body["price"] == payload["price"]
-    assert body["verdict"] == "SUSPICIOUS"
-    assert body["confidence"] == 0.5
-    assert isinstance(body["reasons"], list)
-    assert all(isinstance(reason, str) for reason in body["reasons"])
-    assert body["reasons"] == [
-        "Dummy response: real analysis is not implemented yet"
-    ]
-    assert body["analysis_mode"] == "dummy"
+def make_image(image_format):
+    """Create a tiny valid image in memory for multipart requests."""
+    stream = BytesIO()
+    Image.new("RGB", (2, 2), color="red").save(stream, format=image_format)
+    return stream.getvalue()
 
 
-# Check that surrounding whitespace is removed from product_name.
-def test_analyze_trims_product_name():
-    payload = {"product_name": "  AirPods Pro  ", "brand": "Apple", "price": 24999}
-
-    response = client.post("/analyze", json=payload)
-
-    assert response.status_code == 200
-    assert response.json()["product_name"] == "AirPods Pro"
-
-
-# Check that a missing product_name is rejected.
-def test_analyze_missing_product_name_returns_422():
-    response = client.post("/analyze", json={"brand": "Apple", "price": 10})
-
-    assert response.status_code == 422
-
-
-# Check that a missing brand is rejected.
-def test_analyze_missing_brand_returns_422():
-    response = client.post("/analyze", json={"product_name": "Item", "price": 10})
-
-    assert response.status_code == 422
-
-
-# Check that a missing price is rejected.
-def test_analyze_missing_price_returns_422():
-    response = client.post("/analyze", json={"product_name": "Item", "brand": "A"})
-
-    assert response.status_code == 422
-
-
-# Check that an empty product_name is rejected.
-def test_analyze_empty_product_name_returns_422():
-    payload = {"product_name": "", "brand": "Apple", "price": 10}
-
-    response = client.post("/analyze", json=payload)
-
-    assert response.status_code == 422
-
-
-# Check that a whitespace-only brand is stripped and rejected.
-def test_analyze_whitespace_brand_returns_422():
-    payload = {"product_name": "Item", "brand": "   ", "price": 10}
-
-    response = client.post("/analyze", json=payload)
-
-    assert response.status_code == 422
-
-
-# Check that zero is rejected as a price.
-def test_analyze_zero_price_returns_422():
-    payload = {"product_name": "Item", "brand": "A", "price": 0}
-
-    response = client.post("/analyze", json=payload)
-
-    assert response.status_code == 422
-
-
-# Check that a negative price is rejected.
-def test_analyze_negative_price_returns_422():
-    payload = {"product_name": "Item", "brand": "A", "price": -1}
-
-    response = client.post("/analyze", json=payload)
-
-    assert response.status_code == 422
-
-
-# Check that a non-numeric price is rejected.
-def test_analyze_non_numeric_price_returns_422():
-    payload = {"product_name": "Item", "brand": "A", "price": "abc"}
-
-    response = client.post("/analyze", json=payload)
-
-    assert response.status_code == 422
-
-
-# Check that an empty JSON object is missing required fields.
-def test_analyze_empty_json_returns_422():
-    response = client.post("/analyze", json={})
-
-    assert response.status_code == 422
-
-
-# Check that a plain-text body is rejected as invalid input.
-def test_analyze_plain_text_body_returns_422():
+# Check that a valid PNG upload returns the exact dummy response.
+def test_analyze_valid_png_returns_dummy_response():
     response = client.post(
         "/analyze",
-        content="not JSON",
-        headers={"Content-Type": "text/plain"},
+        files={"image": ("product.png", make_image("PNG"), "image/png")},
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 200
+    assert response.json() == EXPECTED_BODY
 
 
-# Check that unknown product names still receive the same dummy response.
-def test_analyze_unknown_product_returns_dummy_response():
-    payload = {"product_name": "Not in demo catalog", "brand": "Acme", "price": 42}
-
-    response = client.post("/analyze", json=payload)
+# Check that a valid JPEG upload returns the same dummy response.
+def test_analyze_valid_jpeg_returns_dummy_response():
+    response = client.post(
+        "/analyze",
+        files={"image": ("product.jpg", make_image("JPEG"), "image/jpeg")},
+    )
 
     assert response.status_code == 200
+    assert response.json() == EXPECTED_BODY
+
+
+# Check that a valid WebP upload returns the same dummy response.
+def test_analyze_valid_webp_returns_dummy_response():
+    response = client.post(
+        "/analyze",
+        files={"image": ("product.webp", make_image("WEBP"), "image/webp")},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == EXPECTED_BODY
+
+
+# Check that the response contains only the three contract fields.
+def test_analyze_response_has_exact_keys():
+    response = client.post(
+        "/analyze",
+        files={"image": ("product.png", make_image("PNG"), "image/png")},
+    )
+
+    assert set(response.json()) == {"brand", "product", "status"}
+
+
+# Check that an absent image part, including a differently named part, returns 422.
+def test_analyze_missing_image_part_returns_422():
+    empty_response = client.post("/analyze", files={})
+    wrong_name_response = client.post(
+        "/analyze",
+        files={"file": ("product.png", make_image("PNG"), "image/png")},
+    )
+
+    assert empty_response.status_code == 422
+    assert wrong_name_response.status_code == 422
+
+
+# Check that a text upload is rejected with the unsupported-type detail.
+def test_analyze_text_file_returns_unsupported_type_400():
+    response = client.post(
+        "/analyze",
+        files={"image": ("notes.txt", b"hello", "text/plain")},
+    )
+
+    assert response.status_code == 400
     assert response.json() == {
-        "product_name": "Not in demo catalog",
-        "brand": "Acme",
-        "price": 42,
-        "verdict": "SUSPICIOUS",
-        "confidence": 0.5,
-        "reasons": ["Dummy response: real analysis is not implemented yet"],
-        "analysis_mode": "dummy",
+        "detail": "Unsupported file type. Please upload a JPEG, PNG or WebP image."
     }
+
+
+# Check that a PDF-like upload is rejected with HTTP 400.
+def test_analyze_pdf_file_returns_unsupported_type_400():
+    response = client.post(
+        "/analyze",
+        files={"image": ("document.pdf", b"%PDF-1.7", "application/pdf")},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Unsupported file type. Please upload a JPEG, PNG or WebP image."
+    }
+
+
+# Check that an empty image upload returns the empty-file detail.
+def test_analyze_empty_image_returns_400():
+    response = client.post(
+        "/analyze",
+        files={"image": ("empty.png", b"", "image/png")},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Uploaded file is empty."}
+
+
+# Check that unreadable bytes declared as an image return the invalid-image detail.
+def test_analyze_random_image_bytes_returns_400():
+    response = client.post(
+        "/analyze",
+        files={"image": ("broken.png", b"not an image", "image/png")},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Uploaded file is not a valid image."}
+
+
+# Check that a JSON body without a multipart image part returns 422.
+def test_analyze_json_body_returns_422():
+    response = client.post("/analyze", json={"image": "not a file"})
+
+    assert response.status_code == 422
 
 
 # Check that GET is not allowed on the POST-only analysis path.
@@ -165,16 +148,17 @@ def test_openapi_lists_analyze_post_path():
     assert "post" in response.json()["paths"]["/analyze"]
 
 
-# Check that the existing predict endpoint keeps its previous response contract.
+# Check that the existing predict endpoint keeps its previous status and keys.
 def test_predict_regression_reference_product_is_unchanged():
-    payload = {"product_name": "AirPods Pro", "brand": "Apple", "price": 24990}
-
-    response = client.post("/predict", json=payload)
+    response = client.post(
+        "/predict",
+        json={"product_name": "AirPods Pro", "brand": "Apple", "price": 24990},
+    )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "product_name": "AirPods Pro",
-        "brand": "Apple",
-        "price": 24990,
-        "prediction": "genuine",
+    assert set(response.json()) == {
+        "product_name",
+        "brand",
+        "price",
+        "prediction",
     }

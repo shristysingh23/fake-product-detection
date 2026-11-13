@@ -1,22 +1,26 @@
-"""Simulate the Spring Boot backend making real HTTP requests to the ML service."""
+"""Simulate the backend sending an image to the ML service over real HTTP."""
 
+from io import BytesIO
 import sys
 import time
-from urllib.error import URLError
 
 import httpx
+from PIL import Image
 
 
 EXPECTED_RESPONSE = {
-    "product_name": "AirPods Pro",
-    "brand": "Apple",
-    "price": 24999.0,
-    "verdict": "SUSPICIOUS",
-    "confidence": 0.5,
-    "reasons": ["Dummy response: real analysis is not implemented yet"],
-    "analysis_mode": "dummy",
+    "brand": "MAGGI",
+    "product": "2-Minute Noodles",
+    "status": "ANALYSIS_PENDING",
 }
 TIMEOUT_SECONDS = 5.0
+
+
+def make_png():
+    """Build a small valid PNG in memory without writing an image file."""
+    stream = BytesIO()
+    Image.new("RGB", (2, 2), color="red").save(stream, format="PNG")
+    return stream.getvalue()
 
 
 def request(client, method, url, **kwargs):
@@ -38,7 +42,7 @@ def main():
 
     try:
         with httpx.Client(timeout=TIMEOUT_SECONDS) as client:
-            # Check that the health endpoint returns its expected status and body.
+            # Check that the health endpoint responds with the expected body.
             response, elapsed = request(client, "GET", f"{base_url}/health")
             passed_all &= report(
                 "GET /health returns 200 and {\"status\":\"ok\"}",
@@ -46,41 +50,33 @@ def main():
                 elapsed,
             )
 
-            # Check the valid analyze request's status, exact keys, and dummy values.
+            # Check that a valid in-memory PNG upload returns the exact dummy body.
             response, elapsed = request(
                 client,
                 "POST",
                 f"{base_url}/analyze",
-                json={"product_name": "AirPods Pro", "brand": "Apple", "price": 24999},
+                files={"image": ("smoke.png", make_png(), "image/png")},
             )
-            body = response.json()
             passed_all &= report(
-                "POST /analyze valid request returns exact dummy response",
-                response.status_code == 200
-                and set(body) == set(EXPECTED_RESPONSE)
-                and body == EXPECTED_RESPONSE,
+                "POST /analyze PNG upload returns exact dummy response",
+                response.status_code == 200 and response.json() == EXPECTED_RESPONSE,
                 elapsed,
             )
 
-            # Check that a negative price is rejected with HTTP 422.
+            # Check that a text file is rejected as an unsupported upload.
             response, elapsed = request(
                 client,
                 "POST",
                 f"{base_url}/analyze",
-                json={"product_name": "AirPods Pro", "brand": "Apple", "price": -5},
+                files={"image": ("notes.txt", b"hello", "text/plain")},
             )
-            passed_all &= report("POST /analyze negative price returns 422", response.status_code == 422, elapsed)
+            passed_all &= report("POST /analyze text upload returns 400", response.status_code == 400, elapsed)
 
-            # Check that omitting a required field is rejected with HTTP 422.
-            response, elapsed = request(
-                client,
-                "POST",
-                f"{base_url}/analyze",
-                json={"product_name": "AirPods Pro", "price": 24999},
-            )
-            passed_all &= report("POST /analyze missing field returns 422", response.status_code == 422, elapsed)
+            # Check that omitting the required image part returns HTTP 422.
+            response, elapsed = request(client, "POST", f"{base_url}/analyze")
+            passed_all &= report("POST /analyze without image returns 422", response.status_code == 422, elapsed)
 
-    except (httpx.ConnectError, httpx.TimeoutException, URLError) as exc:
+    except httpx.RequestError as exc:
         print(f"FAIL: Could not reach the ML service at {base_url}: {exc}")
         print(f"Is the ML service running on {base_url}?")
         return 1
