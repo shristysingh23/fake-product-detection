@@ -8,3 +8,5 @@ pillow
 pytest==9.2.0
 httpx==0.28.1
 python-multipart==0.0.32
+opencv-python-headless==5.0.0.93
+numpy==2.5.3

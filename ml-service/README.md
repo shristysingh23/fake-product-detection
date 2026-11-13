@@ -41,3 +41,15 @@ See [API_CONTRACT.md](API_CONTRACT.md) for the image-upload request and dummy re
 ```powershell
 .\venv\Scripts\python.exe scripts\smoke_test.py
 ```
+
+## Image preprocessing (Day 6)
+
+The `app/preprocessing.py` module decodes image bytes, resizes large images, trims plain uniform borders, and reduces noise. The pipeline order is decode → resize → trim borders → reduce noise; the images remain uint8 BGR for OCR and YOLO, with a separate helper for normalized float output.
+
+Run the demo with an image path and, optionally, an output folder (default: `ml-service/output`):
+
+```powershell
+.\venv\Scripts\python.exe scripts\preprocess_demo.py path\to\product.png [output-folder]
+```
+
+This preprocessing pipeline is not yet used by `/analyze`.
