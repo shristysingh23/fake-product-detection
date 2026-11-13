@@ -40,6 +40,14 @@ public class Product {
 	@Column(name = "expected_text", columnDefinition = "text")
 	private String expectedText;
 
+	public Product(String brand, String productName, String category, String barcode, String expectedText) {
+		this.brand = brand;
+		this.productName = productName;
+		this.category = category;
+		this.barcode = barcode;
+		this.expectedText = expectedText;
+	}
+
 	protected Product() {
 	}
 
