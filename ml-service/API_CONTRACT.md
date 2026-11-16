@@ -33,13 +33,40 @@ The endpoint validates the declared content type, rejects empty files, then chec
 
 ### Success
 
-HTTP 200 response captured from the running service using a valid PNG upload:
+HTTP 200 response for a valid image upload:
 
 ```json
-{"brand":"MAGGI","product":"2-Minute Noodles","status":"ANALYSIS_PENDING"}
+{
+  "brand": "MAGGI",
+  "product": "2-Minute Noodles",
+  "status": "ANALYSIS_PENDING",
+  "identification_source": "placeholder",
+  "extracted_text": "Maggi\n2-Minute",
+  "ocr_lines": [
+    {"text": "Maggi", "confidence": 1.0},
+    {"text": "2-Minute", "confidence": 0.8}
+  ]
+}
 ```
 
-All three response fields are strings. These values are dummy placeholders and will gain fields later; the plan's Day 14 report adds similarity scores and issues. The field names `brand`, `product`, and `status` will not change without team agreement.
+| Name | Type | Meaning |
+| --- | --- | --- |
+| `brand` | string | Placeholder brand; not derived from the image. |
+| `product` | string | Placeholder product; not derived from the image. |
+| `status` | string | Placeholder analysis status. |
+| `identification_source` | string | `placeholder`; brand and product are not derived from the image. |
+| `extracted_text` | string | Recognized text lines joined by newline characters; empty if no text was found. |
+| `ocr_lines` | array of objects | Real OCR output, each with `text` (string) and `confidence` (number from 0 to 1). |
+
+The brand, product, status, and identification source are placeholders; the OCR fields are real model output. Confidence is a model score, not proof that the text is correct. Field names will not change without team agreement.
+
+The first request after server start takes much longer while OCR models load. The first call in a new process took about 40 to 60 seconds on the developer's laptop; warm-call time has not been measured. Start the service with `OCR_PRELOAD=1` to load models during startup, and use a backend client read timeout of at least 60 seconds.
+
+If OCR fails unexpectedly, the service returns HTTP 503:
+
+```json
+{"detail":"Text extraction failed. Please try again."}
+```
 
 ### Unsupported file type
 
@@ -85,7 +112,7 @@ The backend should treat any non-200 status as an error and map validation, uplo
 
 ## Suggested HTTP client timeouts
 
-Suggested values are 3 seconds to connect and 30 seconds to read, because later analysis will take longer.
+Use a 3-second connect timeout and a read timeout of at least 60 seconds for OCR model loading.
 
 ## Questions for the backend team
 

@@ -29,7 +29,22 @@ pytest -v
 - `GET /` returns `message`.
 - `GET /health` returns `status`.
 - `POST /predict` accepts `product_name` (string), `brand` (string), and `price` (number). It returns `product_name`, `brand`, `price`, and `prediction`.
-- `POST /analyze` accepts one `image` file as `multipart/form-data` (JPEG, PNG, or WebP). It returns the dummy JSON `{"brand":"MAGGI","product":"2-Minute Noodles","status":"ANALYSIS_PENDING"}` with HTTP 200. Unsupported types, empty files, and unreadable images return HTTP 400; a missing image part returns HTTP 422. See [API_CONTRACT.md](API_CONTRACT.md) for the full contract.
+- `POST /analyze` accepts one `image` file as `multipart/form-data` (JPEG, PNG, or WebP). It returns the placeholder brand, product, and status plus OCR text and confidence lines. Unsupported types, empty files, and unreadable images return HTTP 400; a missing image part returns HTTP 422; unexpected OCR failures return HTTP 503. See [API_CONTRACT.md](API_CONTRACT.md) for the full contract.
+
+## Running with OCR
+
+Set `OCR_PRELOAD=1` to load OCR models when the service starts, then start Uvicorn:
+
+```powershell
+$env:OCR_PRELOAD="1"
+.\venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+Manually check `/analyze` with a JPEG image:
+
+```powershell
+curl.exe -F "image=@C:\path\to\photo.jpg;type=image/jpeg" http://127.0.0.1:8000/analyze
+```
 
 
 `/predict` currently uses hard-coded demo reference data for AirPods Pro and iPhone 15. No trained model exists yet.

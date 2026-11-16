@@ -2,9 +2,11 @@
 
 from io import BytesIO
 
+import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from app import ocr
 from app.main import app
 
 
@@ -13,7 +15,20 @@ EXPECTED_BODY = {
     "brand": "MAGGI",
     "product": "2-Minute Noodles",
     "status": "ANALYSIS_PENDING",
+    "identification_source": "placeholder",
+    "extracted_text": "",
+    "ocr_lines": [],
 }
+
+
+class EmptyFakeEngine:
+    def predict(self, image):
+        return []
+
+
+@pytest.fixture(autouse=True)
+def prevent_real_ocr(monkeypatch):
+    monkeypatch.setattr(ocr, "get_ocr_engine", lambda: EmptyFakeEngine())
 
 
 def make_image(image_format):
@@ -63,7 +78,14 @@ def test_analyze_response_has_exact_keys():
         files={"image": ("product.png", make_image("PNG"), "image/png")},
     )
 
-    assert set(response.json()) == {"brand", "product", "status"}
+    assert set(response.json()) == {
+        "brand",
+        "product",
+        "status",
+        "identification_source",
+        "extracted_text",
+        "ocr_lines",
+    }
 
 
 # Check that an absent image part, including a differently named part, returns 422.

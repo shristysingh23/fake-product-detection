@@ -1,11 +1,30 @@
 from io import BytesIO
+import logging
+import os
+import traceback
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from PIL import Image, UnidentifiedImageError
+from starlette.concurrency import run_in_threadpool
 
-from app.schemas import AnalyzeResponse
+from app.analysis import run_ocr_on_bytes
+from app.schemas import AnalyzeResponse, OcrLineOut
 
-app = FastAPI(title="Fake Product Detection API")
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Optional: load the OCR models at start-up so the first request is not slow.
+    # Off by default so tests and quick runs start fast. Enable with OCR_PRELOAD=1.
+    if os.environ.get("OCR_PRELOAD") == "1":
+        from app.ocr import get_ocr_engine
+
+        get_ocr_engine()
+    yield
+
+app = FastAPI(title="Fake Product Detection API", lifespan=lifespan)
 
 
 @app.get("/")
@@ -89,8 +108,27 @@ async def analyze(image: UploadFile = File(...)):
             detail="Uploaded file is not a valid image.",
         )
 
-    return {
-        "brand": "MAGGI",
-        "product": "2-Minute Noodles",
-        "status": "ANALYSIS_PENDING",
-    }
+    try:
+        ocr_result = await run_in_threadpool(run_ocr_on_bytes, image_bytes)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid image.")
+    except Exception as error:
+        # Log only the exception class and traceback frames, never the message or upload data.
+        logger.error(
+            "OCR failed (%s)\n%s",
+            type(error).__name__,
+            "".join(traceback.format_tb(error.__traceback__)),
+        )
+        raise HTTPException(status_code=503, detail="Text extraction failed. Please try again.")
+
+    return AnalyzeResponse(
+        brand="MAGGI",
+        product="2-Minute Noodles",
+        status="ANALYSIS_PENDING",
+        identification_source="placeholder",
+        extracted_text=ocr_result.full_text,
+        ocr_lines=[
+            OcrLineOut(text=line.text, confidence=line.confidence)
+            for line in ocr_result.lines
+        ],
+    )

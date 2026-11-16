@@ -1,19 +1,23 @@
 """Simulate the backend sending an image to the ML service over real HTTP."""
 
 from io import BytesIO
-import sys
+import argparse
 import time
 
 import httpx
 from PIL import Image
 
 
-EXPECTED_RESPONSE = {
-    "brand": "MAGGI",
-    "product": "2-Minute Noodles",
-    "status": "ANALYSIS_PENDING",
-}
 TIMEOUT_SECONDS = 5.0
+ANALYZE_TIMEOUT_SECONDS = 180.0
+EXPECTED_KEYS = {
+    "brand",
+    "product",
+    "status",
+    "identification_source",
+    "extracted_text",
+    "ocr_lines",
+}
 
 
 def make_png():
@@ -37,7 +41,11 @@ def report(name, passed, elapsed_ms):
 
 
 def main():
-    base_url = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://127.0.0.1:8000"
+    parser = argparse.ArgumentParser(description="Smoke test the ML service over HTTP.")
+    parser.add_argument("base_url", nargs="?", default="http://127.0.0.1:8000")
+    parser.add_argument("--timeout", type=float, default=ANALYZE_TIMEOUT_SECONDS)
+    args = parser.parse_args()
+    base_url = args.base_url.rstrip("/")
     passed_all = True
 
     try:
@@ -50,16 +58,25 @@ def main():
                 elapsed,
             )
 
-            # Check that a valid in-memory PNG upload returns the exact dummy body.
+            # Check the additive OCR response; first-use model loading can take a while.
             response, elapsed = request(
                 client,
                 "POST",
                 f"{base_url}/analyze",
                 files={"image": ("smoke.png", make_png(), "image/png")},
+                timeout=args.timeout,
             )
+            body = response.json()
             passed_all &= report(
-                "POST /analyze PNG upload returns exact dummy response",
-                response.status_code == 200 and response.json() == EXPECTED_RESPONSE,
+                "POST /analyze PNG upload returns OCR response contract",
+                response.status_code == 200
+                and set(body) == EXPECTED_KEYS
+                and body.get("brand") == "MAGGI"
+                and body.get("product") == "2-Minute Noodles"
+                and body.get("status") == "ANALYSIS_PENDING"
+                and body.get("identification_source") == "placeholder"
+                and isinstance(body.get("extracted_text"), str)
+                and isinstance(body.get("ocr_lines"), list),
                 elapsed,
             )
 
