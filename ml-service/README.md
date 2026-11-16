@@ -53,3 +53,29 @@ Run the demo with an image path and, optionally, an output folder (default: `ml-
 ```
 
 This preprocessing pipeline is not yet used by `/analyze`.
+
+## Text extraction / OCR (Day 7)
+
+`app/ocr.py` detects text regions in an image, then recognizes the characters in each region. Each returned line includes its text, confidence score, and four-corner box. Confidence is a model estimate, not proof that the text is correct.
+
+PaddleOCR loads lazily on the first OCR call and downloads its models on first use (internet access is needed once). The pinned stack is `numpy==2.3.5`, `opencv-contrib-python==4.10.0.84`, `paddlepaddle==3.2.0`, `paddleocr==3.7.0`, and `paddlex==3.7.2`. Only one OpenCV package may be installed: PaddleX requires `opencv-contrib-python`, so `opencv-python-headless` must not be installed alongside it.
+
+Run the demo from `ml-service` with preprocessing, or pass `--raw` to skip it:
+
+```powershell
+.\venv\Scripts\python.exe scripts\ocr_demo.py path\to\product.jpg
+.\venv\Scripts\python.exe scripts\ocr_demo.py path\to\product.jpg --raw
+```
+
+To run the real OCR integration test in PowerShell:
+
+```powershell
+$env:RUN_OCR_INTEGRATION="1"
+.\venv\Scripts\python.exe -m pytest -v tests\test_ocr.py
+```
+
+### Windows troubleshooting
+
+Importing Paddle creates a folder under the user's home directory (`C:\Users\<you>\.cache\paddle`, taken from `USERPROFILE`). If that location is not writable, create a writable folder and set `USERPROFILE` to it for that terminal only; never run Git in that terminal.
+
+OCR is not yet used by `/analyze`.
