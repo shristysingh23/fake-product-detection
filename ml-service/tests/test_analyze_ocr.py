@@ -67,13 +67,13 @@ def test_analyze_returns_extracted_text_and_lines(monkeypatch):
     ]
 
 
-def test_analyze_keeps_placeholder_fields_unchanged(monkeypatch):
+def test_analyze_reports_not_found_without_matching_catalog_product(monkeypatch):
     use_engine(monkeypatch, FakeEngine(raw(["Maggi"], [0.9])))
     body = post_png().json()
     assert body["brand"] == "MAGGI"
-    assert body["product"] == "2-Minute Noodles"
-    assert body["status"] == "ANALYSIS_PENDING"
-    assert body["identification_source"] == "placeholder"
+    assert body["product"] == ""
+    assert body["status"] == "NOT_FOUND"
+    assert body["identification_source"] == "product_catalog"
 
 
 def test_analyze_response_has_exact_keys(monkeypatch):

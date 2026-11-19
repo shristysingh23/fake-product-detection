@@ -9,6 +9,8 @@ from PIL import Image, UnidentifiedImageError
 from starlette.concurrency import run_in_threadpool
 
 from app.analysis import run_ocr_on_bytes
+from app.catalog import CatalogError, get_product_catalog
+from app.product_matcher import identify_product
 from app.schemas import AnalyzeResponse, OcrLineOut
 
 logger = logging.getLogger(__name__)
@@ -16,6 +18,14 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Validate and cache catalog data once before serving requests. An empty,
+    # valid catalog is supported; missing or malformed data prevents startup.
+    try:
+        app.state.product_catalog = get_product_catalog()
+    except CatalogError as error:
+        logger.error("Product catalog startup failed (%s)", type(error).__name__)
+        raise RuntimeError("Product catalog could not be loaded or validated.") from error
+
     # Optional: load the OCR models at start-up so the first request is not slow.
     # Off by default so tests and quick runs start fast. Enable with OCR_PRELOAD=1.
     if os.environ.get("OCR_PRELOAD") == "1":
@@ -84,7 +94,7 @@ def predict(product: ProductRequest):
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(image: UploadFile = File(...)):
-    """Validate an uploaded image, preprocess it, run OCR, and return analysis fields."""
+    """Validate an image, run OCR, and identify catalog products from its text."""
     # Check the declared content type before reading or inspecting the uploaded bytes.
     accepted_types = {"image/jpeg", "image/png", "image/webp"}
     if image.content_type not in accepted_types:
@@ -121,11 +131,40 @@ async def analyze(image: UploadFile = File(...)):
         )
         raise HTTPException(status_code=503, detail="Text extraction failed. Please try again.")
 
+    # Lifespan initializes this in normal service operation. The cached loader
+    # also supports ASGI clients that invoke the endpoint without lifespan.
+    product_catalog = getattr(app.state, "product_catalog", None)
+    if product_catalog is None:
+        try:
+            product_catalog = get_product_catalog()
+        except CatalogError as error:
+            logger.error("Product catalog unavailable (%s)", type(error).__name__)
+            raise HTTPException(
+                status_code=503, detail="Product catalog is unavailable."
+            ) from error
+
+    try:
+        match = await run_in_threadpool(identify_product, ocr_result.lines, product_catalog)
+    except CatalogError as error:
+        logger.error("Product catalog validation failed (%s)", type(error).__name__)
+        raise HTTPException(
+            status_code=503, detail="Product catalog is unavailable."
+        ) from error
+    except Exception as error:
+        logger.error(
+            "Product matching failed (%s)\n%s",
+            type(error).__name__,
+            "".join(traceback.format_tb(error.__traceback__)),
+        )
+        raise HTTPException(
+            status_code=503, detail="Product identification failed. Please try again."
+        ) from error
+
     return AnalyzeResponse(
-        brand="MAGGI",
-        product="2-Minute Noodles",
-        status="ANALYSIS_PENDING",
-        identification_source="placeholder",
+        brand=match.brand or "",
+        product=match.product or "",
+        status=match.outcome.value,
+        identification_source="product_catalog",
         extracted_text=ocr_result.full_text,
         ocr_lines=[
             OcrLineOut(text=line.text, confidence=line.confidence)

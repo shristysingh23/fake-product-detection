@@ -1,4 +1,4 @@
-"""Tests for the image upload dummy contract on POST /analyze."""
+"""Tests for the image upload contract on POST /analyze."""
 
 from io import BytesIO
 
@@ -12,10 +12,10 @@ from app.main import app
 
 client = TestClient(app)
 EXPECTED_BODY = {
-    "brand": "MAGGI",
-    "product": "2-Minute Noodles",
-    "status": "ANALYSIS_PENDING",
-    "identification_source": "placeholder",
+    "brand": "",
+    "product": "",
+    "status": "NOT_FOUND",
+    "identification_source": "product_catalog",
     "extracted_text": "",
     "ocr_lines": [],
 }
@@ -38,8 +38,8 @@ def make_image(image_format):
     return stream.getvalue()
 
 
-# Check that a valid PNG upload returns the exact dummy response.
-def test_analyze_valid_png_returns_dummy_response():
+# A valid PNG with no OCR text and the empty production catalog is not found.
+def test_analyze_valid_png_returns_not_found_response():
     response = client.post(
         "/analyze",
         files={"image": ("product.png", make_image("PNG"), "image/png")},
@@ -49,8 +49,8 @@ def test_analyze_valid_png_returns_dummy_response():
     assert response.json() == EXPECTED_BODY
 
 
-# Check that a valid JPEG upload returns the same dummy response.
-def test_analyze_valid_jpeg_returns_dummy_response():
+# A valid JPEG with no OCR text and the empty production catalog is not found.
+def test_analyze_valid_jpeg_returns_not_found_response():
     response = client.post(
         "/analyze",
         files={"image": ("product.jpg", make_image("JPEG"), "image/jpeg")},
@@ -60,8 +60,8 @@ def test_analyze_valid_jpeg_returns_dummy_response():
     assert response.json() == EXPECTED_BODY
 
 
-# Check that a valid WebP upload returns the same dummy response.
-def test_analyze_valid_webp_returns_dummy_response():
+# A valid WebP with no OCR text and the empty production catalog is not found.
+def test_analyze_valid_webp_returns_not_found_response():
     response = client.post(
         "/analyze",
         files={"image": ("product.webp", make_image("WEBP"), "image/webp")},

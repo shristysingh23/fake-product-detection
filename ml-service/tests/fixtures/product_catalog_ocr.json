@@ -1,0 +1,18 @@
+{
+  "maggi.jpg": [
+    {"text": "Maggi", "confidence": 0.99},
+    {"text": "2mMinuts", "confidence": 0.72},
+    {"text": "Masala", "confidence": 0.91},
+    {"text": "Instant Noodles with Seasoning", "confidence": 0.94}
+  ],
+  "dove.webp": [
+    {"text": "Dove", "confidence": 0.99},
+    {"text": "Daily Shine", "confidence": 0.96},
+    {"text": "Shampoo", "confidence": 0.98}
+  ],
+  "amul.jpg": [
+    {"text": "Amul", "confidence": 0.99},
+    {"text": "Pasteurised", "confidence": 0.95},
+    {"text": "Butter", "confidence": 0.99}
+  ]
+}

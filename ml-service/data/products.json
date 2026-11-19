@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "products": [
+    {
+      "product_id": "maggi-2-minute-masala-noodles",
+      "brand": "MAGGI",
+      "product_name": "2-Minute Masala Noodles",
+      "category": "Instant Noodles",
+      "brand_aliases": [],
+      "product_aliases": [
+        "2-Minute Noodles",
+        "Masala Instant Noodles"
+      ]
+    },
+    {
+      "product_id": "dove-daily-shine-shampoo",
+      "brand": "Dove",
+      "product_name": "Daily Shine Shampoo",
+      "category": "Shampoo",
+      "brand_aliases": [],
+      "product_aliases": []
+    },
+    {
+      "product_id": "amul-pasteurised-butter",
+      "brand": "Amul",
+      "product_name": "Pasteurised Butter",
+      "category": "Butter",
+      "brand_aliases": [],
+      "product_aliases": []
+    }
+  ]
+}
