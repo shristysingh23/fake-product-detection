@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from app import ocr
+from app import analysis
 from app.main import app
 
 client = TestClient(app)
@@ -20,9 +21,11 @@ class FakeEngine:
     def __init__(self, raw):
         self.raw = raw
         self.calls = 0
+        self.received = None
 
     def predict(self, image):
         self.calls += 1
+        self.received = image.copy()
         return self.raw
 
 
@@ -96,6 +99,40 @@ def test_analyze_calls_engine_once(monkeypatch):
     use_engine(monkeypatch, engine)
     post_png()
     assert engine.calls == 1
+
+
+def test_analyze_preprocesses_large_upload_before_ocr(monkeypatch):
+    engine = FakeEngine(raw(["Maggi"], [0.95]))
+    use_engine(monkeypatch, engine)
+
+    real_preprocess_image = analysis.preprocess_image
+    preprocessing_calls = []
+    preprocessed_images = []
+
+    def recording_preprocess_image(data, max_side=1024):
+        preprocessing_calls.append((data, max_side))
+        result = real_preprocess_image(data, max_side=max_side)
+        preprocessed_images.append(result.image.copy())
+        return result
+
+    monkeypatch.setattr(analysis, "preprocess_image", recording_preprocess_image)
+
+    # 2400 x 1800 exceeds OCR_MAX_SIDE, so the HTTP path must resize it.
+    response = client.post(
+        "/analyze",
+        files={"image": ("large.png", png_bytes(size=(2400, 1800)), "image/png")},
+    )
+
+    assert response.status_code == 200
+    assert len(preprocessing_calls) == 1
+    assert preprocessing_calls[0][1] == analysis.OCR_MAX_SIDE
+    assert engine.calls == 1
+    assert engine.received is not None
+    assert max(engine.received.shape[:2]) <= analysis.OCR_MAX_SIDE
+    assert np.array_equal(engine.received, preprocessed_images[0])
+    body = response.json()
+    assert body["extracted_text"] == "Maggi"
+    assert body["ocr_lines"] == [{"text": "Maggi", "confidence": 0.95}]
 
 
 def test_analyze_returns_503_when_ocr_fails(monkeypatch):

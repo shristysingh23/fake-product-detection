@@ -84,7 +84,7 @@ def predict(product: ProductRequest):
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(image: UploadFile = File(...)):
-    """Day 4 dummy implementation per the 20-day plan; real analysis replaces it on Days 6-13."""
+    """Validate an uploaded image, preprocess it, run OCR, and return analysis fields."""
     # Check the declared content type before reading or inspecting the uploaded bytes.
     accepted_types = {"image/jpeg", "image/png", "image/webp"}
     if image.content_type not in accepted_types:
