@@ -71,6 +71,17 @@ def test_analyze_valid_webp_returns_not_found_response():
     assert response.json() == EXPECTED_BODY
 
 
+@pytest.mark.parametrize("content_type", [None, "application/octet-stream", "image/jpeg"])
+def test_analyze_valid_webp_uses_image_contents_when_mime_metadata_is_missing_or_wrong(content_type):
+    response = client.post(
+        "/analyze",
+        files={"image": ("product.webp", make_image("WEBP"), content_type)},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == EXPECTED_BODY
+
+
 # Check that the response contains only the three contract fields.
 def test_analyze_response_has_exact_keys():
     response = client.post(
@@ -118,6 +129,18 @@ def test_analyze_pdf_file_returns_unsupported_type_400():
     response = client.post(
         "/analyze",
         files={"image": ("document.pdf", b"%PDF-1.7", "application/pdf")},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Unsupported file type. Please upload a JPEG, PNG or WebP image."
+    }
+
+
+def test_analyze_valid_but_unsupported_image_format_returns_unsupported_type_400():
+    response = client.post(
+        "/analyze",
+        files={"image": ("product.gif", make_image("GIF"), "image/gif")},
     )
 
     assert response.status_code == 400

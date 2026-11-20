@@ -95,27 +95,32 @@ def predict(product: ProductRequest):
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(image: UploadFile = File(...)):
     """Validate an image, run OCR, and identify catalog products from its text."""
-    # Check the declared content type before reading or inspecting the uploaded bytes.
-    accepted_types = {"image/jpeg", "image/png", "image/webp"}
-    if image.content_type not in accepted_types:
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported file type. Please upload a JPEG, PNG or WebP image.",
-        )
-
     # Read the upload into memory only; the image is never saved to disk.
     image_bytes = await image.read()
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-    # Verify that the declared image file contains readable image data.
+    # Inspect the actual image data. Multipart MIME metadata and filenames can
+    # be absent or inaccurate, so neither is used to determine the file format.
     try:
         with Image.open(BytesIO(image_bytes)) as uploaded_image:
             uploaded_image.verify()
+            image_format = uploaded_image.format
     except (UnidentifiedImageError, OSError, ValueError, SyntaxError):
+        if image.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+            raise HTTPException(
+                status_code=400,
+                detail="Unsupported file type. Please upload a JPEG, PNG or WebP image.",
+            )
         raise HTTPException(
             status_code=400,
             detail="Uploaded file is not a valid image.",
+        )
+
+    if image_format not in {"JPEG", "PNG", "WEBP"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Please upload a JPEG, PNG or WebP image.",
         )
 
     try:
