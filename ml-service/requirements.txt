@@ -5,7 +5,11 @@ numpy
 pandas
 scikit-learn
 pillow
-python-multipart
+opencv-python-headless
+pyzbar
+easyocr==1.7.2
+torch>=2.2,<3
+transformers>=4.46,<5
 pytest==9.2.0
 httpx==0.28.1
 python-multipart==0.0.32

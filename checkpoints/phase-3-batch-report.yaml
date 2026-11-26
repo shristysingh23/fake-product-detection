@@ -1,0 +1,64 @@
+batch_id: "PHASE-3"
+completed_tasks: ["T013", "T014", "T015", "T019"]
+blocked_tasks: []
+files_changed:
+  T013:
+    - file: "ml-service/app/preprocessing.py"
+      change_type: "created"
+      description: "Added image validation and preprocessing"
+  T014:
+    - file: "ml-service/app/ocr.py"
+      change_type: "created"
+      description: "Added lazy OCR extraction"
+    - file: "ml-service/app/detection.py"
+      change_type: "created"
+      description: "Added barcode and QR detection"
+    - file: "ml-service/app/schemas.py"
+      change_type: "modified"
+      description: "Added structured extraction contracts"
+  T015:
+    - file: "backend/src/main/java/com/fpd/backend/service/ProductIdentificationService.java"
+      change_type: "created"
+      description: "Added ranked PostgreSQL reference matching"
+    - file: "backend/src/main/java/com/fpd/backend/dto/response/AnalyzeResponseDto.java"
+      change_type: "modified"
+      description: "Extended the backend ML response contract"
+evidence_mapping:
+  T013:
+    - upstream: "Pasted text #1.txt#Task 3.1"
+      output: "ml-service/app/preprocessing.py"
+      evidence: "test_preprocessing.py"
+  T014:
+    - upstream: "Pasted text #1.txt#Tasks 3.2-3.3"
+      output: "ml-service/app/ocr.py, ml-service/app/detection.py"
+      evidence: "test_analyze.py"
+  T015:
+    - upstream: "Pasted text #1.txt#Tasks 3.4-3.5"
+      output: "backend/src/main/java/com/fpd/backend/service/ProductIdentificationService.java"
+      evidence: "ProductIdentificationServiceTests"
+traceability:
+  - requirement: "REQ-002, REQ-003, REQ-004"
+    plan_item: "3.1"
+    task: "T013, T014"
+    files: ["ml-service/app/preprocessing.py", "ml-service/app/ocr.py"]
+    status: "completed"
+  - requirement: "REQ-005, REQ-007, REQ-009"
+    plan_item: "4.1, 6.1"
+    task: "T015, T019"
+    files: ["ml-service/app/detection.py", "backend/src/main/java/com/fpd/backend/service/ProductIdentificationService.java"]
+    status: "completed"
+protocol_violation: false
+errors: []
+warnings:
+  - "EasyOCR/PaddleOCR and pyzbar are optional at runtime; production setup must install at least one OCR engine and native zbar where barcode decoding is required."
+test_results:
+  ML:
+    command: "python -m pytest -q"
+    passed: 26
+    failed: 0
+    skipped: 0
+  Backend:
+    command: ".\\mvnw test"
+    passed: 87
+    failed: 0
+    skipped: 0

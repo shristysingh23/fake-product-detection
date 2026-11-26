@@ -8,6 +8,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 @Entity
 @Table(name = "products")
@@ -39,6 +41,10 @@ public class Product {
 	@Size(max = 5000)
 	@Column(name = "expected_text", columnDefinition = "text")
 	private String expectedText;
+
+	@ManyToOne
+	@JoinColumn(name = "brand_id")
+	private Brand brandReference;
 
 	public Product(String brand, String productName, String category, String barcode, String expectedText) {
 		this.brand = brand;
@@ -93,5 +99,11 @@ public class Product {
 
 	public void setExpectedText(String expectedText) {
 		this.expectedText = expectedText;
+	}
+
+	public Brand getBrandReference() { return brandReference; }
+
+	public void setBrandReference(Brand brandReference) {
+		this.brandReference = brandReference;
 	}
 }

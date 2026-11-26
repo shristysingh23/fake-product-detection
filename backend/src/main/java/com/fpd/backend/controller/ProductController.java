@@ -29,10 +29,18 @@ import com.fpd.backend.service.ProductService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
+@Tag(name = "Products", description = "Verified product reference management")
 public class ProductController {
 
 	private static final int MAX_PAGE_SIZE = 100;
@@ -42,6 +50,12 @@ public class ProductController {
 	private final ProductService productService;
 
 	@PostMapping
+	@Operation(summary = "Create a product reference")
+	@ApiResponses({
+		@ApiResponse(responseCode = "201", description = "Product created"),
+		@ApiResponse(responseCode = "400", description = "Invalid product input",
+			content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+	})
 	public ResponseEntity<ProductResponseDto> createProduct(
 			@Valid @RequestBody ProductCreateRequestDto request) {
 		ProductResponseDto response = productService.createProduct(request);
@@ -58,7 +72,8 @@ public class ProductController {
 			@RequestParam(name = "page", defaultValue = "0") int page,
 			@RequestParam(name = "size", defaultValue = "10") int size,
 			@RequestParam(name = "sortBy", defaultValue = "id") String sortBy,
-			@RequestParam(name = "direction", defaultValue = "ASC") String direction) {
+			@RequestParam(name = "direction", defaultValue = "ASC") String direction,
+			@RequestParam(name = "brandId", required = false) Long brandId) {
 		if (page < 0) {
 			return badRequest("Page number must be zero or greater.");
 		}
@@ -78,6 +93,9 @@ public class ProductController {
 		Sort.Direction sortDirection = Sort.Direction.valueOf(direction.toUpperCase(Locale.ROOT));
 		Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
 
+		if (brandId != null) {
+			return ResponseEntity.ok(productService.getProductsByBrand(brandId, pageable));
+		}
 		return ResponseEntity.ok(productService.getAllProducts(pageable));
 	}
 

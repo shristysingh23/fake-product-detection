@@ -26,18 +26,67 @@ import com.fpd.backend.dto.request.ProductCreateRequestDto;
 import com.fpd.backend.dto.request.ProductUpdateRequestDto;
 import com.fpd.backend.dto.response.ProductResponseDto;
 import com.fpd.backend.entity.Product;
+import com.fpd.backend.entity.Brand;
+import com.fpd.backend.exception.BrandNotFoundException;
 import com.fpd.backend.exception.ProductNotFoundException;
 import com.fpd.backend.repository.ProductRepository;
+import com.fpd.backend.repository.BrandRepository;
 
 class ProductServiceTests {
 
 	private ProductRepository productRepository;
+	private BrandRepository brandRepository;
 	private ProductService productService;
 
 	@BeforeEach
 	void setUp() {
 		productRepository = org.mockito.Mockito.mock(ProductRepository.class);
-		productService = new ProductService(productRepository);
+		brandRepository = org.mockito.Mockito.mock(BrandRepository.class);
+		productService = new ProductService(productRepository, brandRepository);
+	}
+
+	@Test
+	void createsProductWithBrandAssociation() {
+		Brand brand = new Brand("Adidas", null, null, "Germany");
+		ReflectionTestUtils.setField(brand, "id", 7L);
+		when(brandRepository.findById(7L)).thenReturn(Optional.of(brand));
+		when(productRepository.save(any(Product.class))).thenAnswer(invocation -> {
+			Product saved = invocation.getArgument(0);
+			ReflectionTestUtils.setField(saved, "id", 51L);
+			return saved;
+		});
+
+		ProductResponseDto response = productService.createProduct(
+				new ProductCreateRequestDto("Old Adidas label", "Ultraboost", "Shoes",
+						null, null, 7L));
+
+		assertEquals("Adidas", response.brand());
+		assertEquals(7L, response.brandId());
+	}
+
+	@Test
+	void rejectsMissingBrandAssociation() {
+		when(brandRepository.findById(99L)).thenReturn(Optional.empty());
+
+		assertThrows(BrandNotFoundException.class, () -> productService.createProduct(
+				new ProductCreateRequestDto("Adidas", "Ultraboost", "Shoes",
+						null, null, 99L)));
+
+		verifyNoInteractions(productRepository);
+	}
+
+	@Test
+	void filtersProductsByBrand() {
+		Pageable pageable = PageRequest.of(0, 10, Sort.by("id"));
+		when(brandRepository.findById(7L)).thenReturn(Optional.of(
+				new Brand("Adidas", null, null, null)));
+		when(productRepository.findByBrandReferenceId(7L, pageable))
+				.thenReturn(Page.empty(pageable));
+
+		Page<ProductResponseDto> results = productService.getProductsByBrand(7L, pageable);
+
+		assertTrue(results.isEmpty());
+		verify(productRepository).findByBrandReferenceId(7L, pageable);
 	}
 
 	@Test

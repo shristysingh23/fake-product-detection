@@ -7,12 +7,15 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 
 import com.fpd.backend.dto.response.ApiErrorResponse;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -20,6 +23,32 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(ProductNotFoundException.class)
 	public ResponseEntity<ApiErrorResponse> handleProductNotFound(ProductNotFoundException exception) {
 		return error(HttpStatus.NOT_FOUND, exception.getMessage());
+	}
+
+	@ExceptionHandler(BrandNotFoundException.class)
+	public ResponseEntity<ApiErrorResponse> handleBrandNotFound(BrandNotFoundException exception) {
+		return error(HttpStatus.NOT_FOUND, exception.getMessage());
+	}
+
+	@ExceptionHandler(ReferenceNotFoundException.class)
+	public ResponseEntity<ApiErrorResponse> handleReferenceNotFound(ReferenceNotFoundException exception) {
+		return error(HttpStatus.NOT_FOUND, exception.getMessage());
+	}
+
+	@ExceptionHandler(DuplicateReferenceException.class)
+	public ResponseEntity<ApiErrorResponse> handleDuplicateReference(DuplicateReferenceException exception) {
+		return error(HttpStatus.CONFLICT, exception.getMessage());
+	}
+
+	@ExceptionHandler(DataIntegrityViolationException.class)
+	public ResponseEntity<ApiErrorResponse> handleDataIntegrity(DataIntegrityViolationException exception) {
+		return error(HttpStatus.CONFLICT,
+				"The record cannot be deleted because dependent records exist.");
+	}
+
+	@ExceptionHandler(StorageOperationException.class)
+	public ResponseEntity<ApiErrorResponse> handleStorageOperation(StorageOperationException exception) {
+		return error(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
@@ -66,6 +95,21 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(MissingServletRequestPartException.class)
 	public ResponseEntity<ApiErrorResponse> handleMissingPart() {
 		return error(HttpStatus.BAD_REQUEST, "The required image part is missing.");
+	}
+
+	@ExceptionHandler(ImageValidationException.class)
+	public ResponseEntity<ApiErrorResponse> handleImageValidation(ImageValidationException exception) {
+		return error(HttpStatus.BAD_REQUEST, exception.getMessage());
+	}
+
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	public ResponseEntity<ApiErrorResponse> handleUploadSizeExceeded() {
+		return error(HttpStatus.BAD_REQUEST, "The uploaded image must not exceed 10 MB.");
+	}
+
+	@ExceptionHandler(MultipartException.class)
+	public ResponseEntity<ApiErrorResponse> handleMalformedMultipart() {
+		return error(HttpStatus.BAD_REQUEST, "Malformed multipart request.");
 	}
 
 	@ExceptionHandler(MlServiceUnavailableException.class)

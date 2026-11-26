@@ -14,16 +14,22 @@ import com.fpd.backend.dto.response.ProductResponseDto;
 import com.fpd.backend.entity.Product;
 import com.fpd.backend.exception.ProductNotFoundException;
 import com.fpd.backend.repository.ProductRepository;
-
-import lombok.RequiredArgsConstructor;
+import com.fpd.backend.entity.Brand;
+import com.fpd.backend.exception.BrandNotFoundException;
+import com.fpd.backend.repository.BrandRepository;
 
 @Service
-@RequiredArgsConstructor
 public class ProductService {
 
 	private static final int MAX_PAGE_SIZE = 100;
 
 	private final ProductRepository productRepository;
+	private final BrandRepository brandRepository;
+
+	public ProductService(ProductRepository productRepository, BrandRepository brandRepository) {
+		this.productRepository = productRepository;
+		this.brandRepository = brandRepository;
+	}
 
 	public ProductResponseDto createProduct(ProductCreateRequestDto request) {
 		Product product = new Product(
@@ -32,6 +38,11 @@ public class ProductService {
 				request.category(),
 				request.barcode(),
 				request.expectedText());
+		Brand brandReference = resolveBrand(request.brandId());
+		product.setBrandReference(brandReference);
+		if (brandReference != null) {
+			product.setBrand(brandReference.getName());
+		}
 
 		return mapToResponseDto(productRepository.save(product));
 	}
@@ -62,6 +73,15 @@ public class ProductService {
 				.map(this::mapToResponseDto);
 	}
 
+	public Page<ProductResponseDto> getProductsByBrand(Long brandId, Pageable pageable) {
+		validatePageable(pageable);
+		if (brandRepository.findById(brandId).isEmpty()) {
+			throw new BrandNotFoundException("Brand with id " + brandId + " was not found.");
+		}
+		return productRepository.findByBrandReferenceId(brandId, pageable)
+				.map(this::mapToResponseDto);
+	}
+
 	public ProductResponseDto updateProduct(Long id, ProductUpdateRequestDto request) {
 		Product product = productRepository.findById(id)
 				.orElseThrow(() -> new ProductNotFoundException("Product with id " + id + " was not found."));
@@ -71,6 +91,11 @@ public class ProductService {
 		product.setCategory(request.category());
 		product.setBarcode(request.barcode());
 		product.setExpectedText(request.expectedText());
+		Brand brandReference = resolveBrand(request.brandId());
+		product.setBrandReference(brandReference);
+		if (brandReference != null) {
+			product.setBrand(brandReference.getName());
+		}
 
 		return mapToResponseDto(productRepository.save(product));
 	}
@@ -89,7 +114,17 @@ public class ProductService {
 				product.getProductName(),
 				product.getCategory(),
 				product.getBarcode(),
-				product.getExpectedText());
+				product.getExpectedText(),
+				product.getBrandReference() == null ? null : product.getBrandReference().getId());
+	}
+
+	private Brand resolveBrand(Long brandId) {
+		if (brandId == null) {
+			return null;
+		}
+		return brandRepository.findById(brandId)
+				.orElseThrow(() -> new BrandNotFoundException(
+						"Brand with id " + brandId + " was not found."));
 	}
 
 	private void validatePageable(Pageable pageable) {

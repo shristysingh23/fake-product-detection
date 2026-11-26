@@ -1,0 +1,121 @@
+# Tasks-to-Implementation Traceability Checkpoint
+# Generated after Phase 3 implementation
+metadata:
+  generated: "2026-11-25"
+  source_tasks: "plan.md"
+  last_updated: "2026-11-25"
+
+summary:
+  total_tasks: 35
+  completed_tasks: 4
+  in_progress_tasks: 0
+  pending_tasks: 31
+  completion_percentage: 11.4
+
+tasks:
+  - task_id: "T013"
+    description: "Implement image preprocessing and orientation correction"
+    status: "completed"
+    implementation:
+      files_changed:
+        - file: "ml-service/app/preprocessing.py"
+          change_type: "created"
+          description: "Added readable-image validation, EXIF orientation, resizing, contrast and blur handling"
+    verification:
+      build_passed: true
+      test_results:
+        command: "python -m pytest -q"
+        passed: 26
+        failed: 0
+        skipped: 0
+      notes: "Preprocessing tests pass"
+    upstream_trace:
+      plan_item: "3.1"
+      requirements: ["REQ-002", "REQ-003", "REQ-004"]
+
+  - task_id: "T014"
+    description: "Implement region detection and OCR"
+    status: "completed"
+    implementation:
+      files_changed:
+        - file: "ml-service/app/ocr.py"
+          change_type: "created"
+          description: "Added reusable PaddleOCR/EasyOCR extraction with structured confidence regions"
+        - file: "ml-service/app/detection.py"
+          change_type: "created"
+          description: "Added OpenCV QR and optional pyzbar barcode decoding"
+        - file: "ml-service/app/main.py"
+          change_type: "modified"
+          description: "Replaced dummy analysis response with extraction pipeline"
+        - file: "ml-service/app/schemas.py"
+          change_type: "modified"
+          description: "Added structured extraction response models"
+    verification:
+      build_passed: true
+      test_results:
+        command: "python -m pytest -q"
+        passed: 26
+        failed: 0
+        skipped: 0
+    upstream_trace:
+      plan_item: "3.1"
+      requirements: ["REQ-002", "REQ-003", "REQ-004", "REQ-007"]
+
+  - task_id: "T019"
+    description: "Detect and extract barcode and QR values"
+    status: "completed"
+    implementation:
+      files_changed:
+        - file: "ml-service/app/detection.py"
+          change_type: "created"
+          description: "Added barcode and QR detection"
+    verification:
+      build_passed: true
+      test_results:
+        command: "python -m pytest -q"
+        passed: 26
+        failed: 0
+        skipped: 0
+    upstream_trace:
+      plan_item: "4.1"
+      requirements: ["REQ-007"]
+
+  - task_id: "T015"
+    description: "Integrate extraction output with Spring reference matching"
+    status: "completed"
+    implementation:
+      files_changed:
+        - file: "backend/src/main/java/com/fpd/backend/service/ProductIdentificationService.java"
+          change_type: "created"
+          description: "Added exact barcode and normalized/fuzzy product matching"
+        - file: "backend/src/main/java/com/fpd/backend/controller/MlController.java"
+          change_type: "modified"
+          description: "Runs backend reference matching after ML extraction"
+    verification:
+      build_passed: true
+      test_results:
+        command: ".\\mvnw test"
+        passed: 87
+        failed: 0
+        skipped: 0
+    upstream_trace:
+      plan_item: "6.1"
+      requirements: ["REQ-005", "REQ-007", "REQ-009"]
+
+pending_tasks: []
+untracked_changes: []
+
+traceability_chain:
+  - chain_id: "TRACE-PHASE3"
+    requirement: "REQ-002, REQ-003, REQ-004, REQ-005, REQ-007, REQ-009"
+    task: "T013, T014, T015, T019"
+    files:
+      - "ml-service/app/"
+      - "backend/src/main/java/com/fpd/backend/service/ProductIdentificationService.java"
+    status: "complete"
+
+validation:
+  passed: true
+  errors: []
+  warnings:
+    - "OCR accuracy depends on installing and starting an external OCR engine."

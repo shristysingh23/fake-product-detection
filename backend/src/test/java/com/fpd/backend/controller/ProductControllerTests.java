@@ -135,6 +135,19 @@ class ProductControllerTests {
 	}
 
 	@Test
+	void getAllProductsCanFilterByBrand() throws Exception {
+		when(productService.getProductsByBrand(eq(7L), any(Pageable.class)))
+				.thenAnswer(invocation -> Page.empty(invocation.getArgument(1)));
+
+		mockMvc.perform(get("/api/products").param("brandId", "7"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content").isArray());
+
+		verify(productService).getProductsByBrand(
+				eq(7L), eq(PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "id"))));
+	}
+
+	@Test
 	void getAllProductsRejectsNegativePage() throws Exception {
 		assertInvalidProductListRequest(
 				get("/api/products").param("page", "-1"),

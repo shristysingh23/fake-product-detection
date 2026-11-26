@@ -59,8 +59,6 @@ public class MlServiceClient {
 					.retrieve()
 					.body(AnalyzeResponseDto.class);
 			if (response == null
-					|| response.brand() == null
-					|| response.product() == null
 					|| response.status() == null) {
 				throw new MlUpstreamException();
 			}
